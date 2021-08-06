@@ -52,13 +52,14 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "0 - Solution Items", "0 - Solution Items", "{F93B663B-BABA-4F85-871A-47BFF993A0D7}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
+		temp-pack.ps1 = temp-pack.ps1
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Optsol.Components.Infra.Storage", "src\Optsol.Components.Infra.Storage\Optsol.Components.Infra.Storage.csproj", "{D53E7A3B-92B0-434C-849B-14ADC111D601}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Optsol.Components.Infra.RabbitMQ", "src\Optsol.Components.Infra.RabbitMQ\Optsol.Components.Infra.RabbitMQ.csproj", "{38CF824B-8A26-494E-91CD-5AA4FFC838B5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Optsol.Components.Infra.Twilio", "src\Optsol.Components.Infra.Twilio\Optsol.Components.Infra.Twilio.csproj", "{D466833A-C0AF-4E5D-A738-3997ED2775C4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Optsol.Components.Infra.Twilio", "src\Optsol.Components.Infra.Twilio\Optsol.Components.Infra.Twilio.csproj", "{D466833A-C0AF-4E5D-A738-3997ED2775C4}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Optsol.Components.Infra.ElasticSearch", "src\Optsol.Components.Infra.ElasticSearch\Optsol.Components.Infra.ElasticSearch.csproj", "{6CAD1B20-0750-4BCB-9F8C-C4F998ACD14B}"
 EndProject
