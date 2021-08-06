@@ -4,7 +4,7 @@ using Optsol.Components.Domain.Entities;
 using Optsol.Components.Infra.Twilio.Clients;
 using Optsol.Components.Infra.Twilio.Common;
 using Optsol.Components.Infra.Twilio.Models;
-using Optsol.Components.Shared.Extensions;
+using System;
 using System.Threading.Tasks;
 using Twilio.Rest.Api.V2010.Account;
 
