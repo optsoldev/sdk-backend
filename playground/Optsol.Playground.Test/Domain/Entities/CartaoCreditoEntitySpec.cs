@@ -1,23 +1,25 @@
-using System;
-using System.Linq;
 using FluentAssertions;
 using Optsol.Playground.Domain.Entities;
 using Optsol.Playground.Domain.ValueObjects;
+using System;
+using System.Linq;
 using Xunit;
 
 namespace Optsol.Playground.Test.Domain.Entities
 {
     public class CartaoCreditoEntitySpec
     {
-         [Fact]
+        [Trait("Playground", "Domain")]
+        [Fact(DisplayName = "Deve inserir cartao no cliente")]
         public void Deve_Inserir_Cartao_No_Cliente()
         {
             //Given
-            ClienteEntity clienteEntity = new ClienteEntity(
+            var clienteEntity = new ClientePessoaFisicaEntity(
                 new NomeValueObject("Weslley", "Carneiro"),
-                new EmailValueObject("weslley@outlook.com")
+                new EmailValueObject("weslley@outlook.com"),
+                "000.000.000-00"
             );
-            CartaoCreditoEntity cartaoCreditoEntity = new CartaoCreditoEntity(
+            var cartaoCreditoEntity = new CartaoCreditoEntity(
                 "Weslley B. Carneiro",
                 "1326554545455",
                 "985",
@@ -32,17 +34,19 @@ namespace Optsol.Playground.Test.Domain.Entities
             clienteEntity.Cartoes.Any().Should().BeTrue();
         }
 
-        [Fact]
-        public void Deve_Inserir_Cartao_Vencido()
+        [Trait("Playground", "Domain")]
+        [Fact(DisplayName = "Não deve inserir cartao vencido")]
+        public void Nao_Deve_Inserir_Cartao_Vencido()
         {
             //Given
             var clienteId = Guid.NewGuid();
-            ClienteEntity clienteEntity = new ClienteEntity(
+            var clienteEntity = new ClientePessoaFisicaEntity(
                 clienteId,
                 new NomeValueObject("Weslley", "Carneiro"),
-                new EmailValueObject("weslley@outlook.com")
+                new EmailValueObject("weslley@outlook.com"),
+                "000.000.000-00"
             );
-            CartaoCreditoEntity cartaoCreditoEntity = new CartaoCreditoEntity(
+            var cartaoCreditoEntity = new CartaoCreditoEntity(
                 Guid.NewGuid(),
                 "Weslley B. Carneiro",
                 "1326554545455",

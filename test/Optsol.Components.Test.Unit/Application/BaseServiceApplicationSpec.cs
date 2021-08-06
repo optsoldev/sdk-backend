@@ -33,24 +33,22 @@ namespace Optsol.Components.Test.Unit.Application
             var entity2 = new TestEntity();
             entity2.Validate();
 
-            var model = new TestViewModel();
+            var model = new TestResponseDto();
             model.Nome = "Weslley Carneiro";
             model.Contato = "weslley.carneiro@optsol.com.br";
 
-            var insertModel = new InsertTestViewModel();
+            var insertModel = new TestRequestDto();
             insertModel.Nome = "Weslley Carneiro";
             insertModel.Contato = "weslley.carneiro@optsol.com.br";
 
-            var updateModel = new UpdateTestViewModel();
-            updateModel.Id = Guid.NewGuid();
+            var updateModel = new TestRequestDto();
             updateModel.Nome = "Weslley Carneiro";
             updateModel.Contato = "weslley.carneiro@optsol.com.br";
 
             var mapperMock = new Mock<IMapper>();
-            mapperMock.Setup(mapper => mapper.Map<TestViewModel>(It.IsAny<TestEntity>())).Returns(model);
-            mapperMock.Setup(mapper => mapper.Map<TestEntity>(It.IsAny<TestViewModel>())).Returns(entity);
-            mapperMock.Setup(mapper => mapper.Map<TestEntity>(It.IsAny<InsertTestViewModel>())).Returns(entity);
-            mapperMock.Setup(mapper => mapper.Map<TestEntity>(It.IsAny<UpdateTestViewModel>())).Returns(entity);
+            mapperMock.Setup(mapper => mapper.Map<TestResponseDto>(It.IsAny<TestEntity>())).Returns(model);
+            mapperMock.Setup(mapper => mapper.Map<TestEntity>(It.IsAny<TestResponseDto>())).Returns(entity);
+            mapperMock.Setup(mapper => mapper.Map<TestEntity>(It.IsAny<TestRequestDto>())).Returns(entity);
 
             var unitOfWork = new Mock<IUnitOfWork>();
             unitOfWork.Setup(uow => uow.CommitAsync()).ReturnsAsync(1);
@@ -63,11 +61,11 @@ namespace Optsol.Components.Test.Unit.Application
 
             var notificationContextMock = new Mock<NotificationContext>();
 
-            var logger = new XunitLogger<BaseServiceApplication<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel>>();
+            var logger = new XunitLogger<BaseServiceApplication<TestEntity>>();
             var loggerFactoryMock = new Mock<ILoggerFactory>();
             loggerFactoryMock.Setup(setup => setup.CreateLogger(It.IsAny<string>())).Returns(logger);
 
-            var service = new BaseServiceApplication<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel>(
+            var service = new BaseServiceApplication<TestEntity>(
                 mapperMock.Object,
                 loggerFactoryMock.Object,
                 unitOfWork.Object,
@@ -76,15 +74,15 @@ namespace Optsol.Components.Test.Unit.Application
                 notificationContextMock.Object);
 
             //When
-            await service.GetAllAsync();
-            await service.GetByIdAsync(entity.Id);
-            await service.InsertAsync(insertModel);
-            await service.UpdateAsync(updateModel);
+            await service.GetAllAsync<TestResponseDto>();
+            await service.GetByIdAsync<TestResponseDto>(entity.Id);
+            await service.InsertAsync<TestRequestDto, TestResponseDto>(insertModel);
+            await service.UpdateAsync<TestRequestDto, TestResponseDto>(entity.Id, updateModel);
             await service.DeleteAsync(entity.Id);
 
             //Then
             var msgConstructor = $"Inicializando Application Service<{ entity.GetType().Name }, Guid>";
-            var msgGetByIdAsync = $"Método: GetByIdAsync({{ id:{ entity.Id } }}) Retorno: type TestViewModel";
+            var msgGetByIdAsync = $"Método: GetByIdAsync({{ id:{ entity.Id } }}) Retorno: type { model.GetType().Name }";
             var msgGetAllAsync = $"Método: GetAllAsync() Retorno: IEnumerable<{ model.GetType().Name }>";
             var msgInsertAsync = $"Método: InsertAsync({{ viewModel:{ insertModel.ToJson() } }})";
             var msgInsertAsyncMapper = $"Método: InsertAsync Mapper: { insertModel.GetType().Name } To: { entity.GetType().Name }";
@@ -92,7 +90,7 @@ namespace Optsol.Components.Test.Unit.Application
             var msgUpdateAsyncMapper = $"Método: UpdateAsync Mapper: { updateModel.GetType().Name } To: { entity.GetType().Name }";
             var msgDeleteAsync = $"Método: DeleteAsync({{ id:{ entity.Id } }})";
 
-            logger.Logs.Should().HaveCount(11);
+            logger.Logs.Should().HaveCount(9);
             logger.Logs.Any(a => a.Equals(msgConstructor)).Should().BeTrue();
             logger.Logs.Any(a => a.Equals(msgGetByIdAsync)).Should().BeTrue();
             logger.Logs.Any(a => a.Equals(msgGetAllAsync)).Should().BeTrue();
@@ -118,9 +116,9 @@ namespace Optsol.Components.Test.Unit.Application
                     },
                     new []
                     {
-                         new TestViewModel() { Nome = "Isaiah Sosa", Contato = "justo.eu.arcu@Integervitaenibh.net" },
-                         new TestViewModel() { Nome = "Hop Gross", Contato = "Integer@magna.co.uk" },
-                         new TestViewModel() { Nome = "Armand Villarreal", Contato = "lorem.tristique@posuerevulputatelacus.ca" }
+                         new TestResponseDto() { Nome = "Isaiah Sosa", Contato = "justo.eu.arcu@Integervitaenibh.net" },
+                         new TestResponseDto() { Nome = "Hop Gross", Contato = "Integer@magna.co.uk" },
+                         new TestResponseDto() { Nome = "Armand Villarreal", Contato = "lorem.tristique@posuerevulputatelacus.ca" }
                     }
                 };
             }
@@ -131,11 +129,11 @@ namespace Optsol.Components.Test.Unit.Application
         [Trait("Serviço de Aplicação", "Log de Ocorrências")]
         [Theory(DisplayName = "Deve registrar os logs no serviço ao obter todos os registros")]
         [ClassData(typeof(ObterTodosParams))]
-        public void Deve_Registrar_Logs_No_Servico_Ao_Obter_Todos_Registros(IEnumerable<TestEntity> entities, IEnumerable<TestViewModel> viewModels)
+        public async Task Deve_Registrar_Logs_No_Servico_Ao_Obter_Todos_Registros(IEnumerable<TestEntity> entities, IEnumerable<TestResponseDto> testResponseDtoList)
         {
             //Given
             var mapperMock = new Mock<IMapper>();
-            mapperMock.Setup(mapper => mapper.Map<IEnumerable<TestViewModel>>(It.IsAny<TestEntity>())).Returns(viewModels);
+            mapperMock.Setup(mapper => mapper.Map<IEnumerable<TestResponseDto>>(It.IsAny<TestEntity>())).Returns(testResponseDtoList);
 
             var unitOfWork = new Mock<IUnitOfWork>();
             unitOfWork.Setup(uow => uow.CommitAsync()).ReturnsAsync(1);
@@ -147,11 +145,11 @@ namespace Optsol.Components.Test.Unit.Application
 
             var notificationContextMock = new Mock<NotificationContext>();
 
-            var logger = new XunitLogger<BaseServiceApplication<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel>>();
+            var logger = new XunitLogger<BaseServiceApplication<TestEntity>>();
             var loggerFactoryMock = new Mock<ILoggerFactory>();
             loggerFactoryMock.Setup(setup => setup.CreateLogger(It.IsAny<string>())).Returns(logger);
 
-            var service = new BaseServiceApplication<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel>(
+            var service = new BaseServiceApplication<TestEntity>(
                 mapperMock.Object,
                 loggerFactoryMock.Object,
                 unitOfWork.Object,
@@ -160,12 +158,12 @@ namespace Optsol.Components.Test.Unit.Application
                 notificationContextMock.Object);
 
             //When
-            service.GetAllAsync().ConfigureAwait(false);
+            await service.GetAllAsync<TestResponseDto>();
 
             //Then
             var msgConstructor = $"Inicializando Application Service<{ nameof(TestEntity) }, Guid>";
-            var msgGetAllAsync = $"Método: GetAllAsync() Retorno: IEnumerable<{ nameof(TestViewModel) }>";
-            
+            var msgGetAllAsync = $"Método: GetAllAsync() Retorno: IEnumerable<{ nameof(TestResponseDto) }>";
+
 
             logger.Logs.Should().HaveCount(3);
             logger.Logs.Any(a => a.Equals(msgConstructor)).Should().BeTrue();

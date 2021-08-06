@@ -19,8 +19,6 @@ namespace Optsol.Components.Test.Integration.Infra.MongoDB
 {
     public class MongoRepositorySpec
     {
-        public static MongoContext _mongoContext;
-
         private static ServiceProvider GetProviderConfiguredServicesFromContext()
         {
             var configuration = new ConfigurationBuilder()
@@ -36,13 +34,15 @@ namespace Optsol.Components.Test.Integration.Infra.MongoDB
 
             var provider = services.BuildServiceProvider();
 
-            _mongoContext = provider.GetRequiredService<MongoContext>();
-
             return provider;
         }
 
         [Trait("Infraestrutura", "MongoDB Respositório de Leitura")]
+#if DEBUG 
+        [Fact(DisplayName = "Deve obter todos registros pelo repositório")]
+#elif RELEASE
         [Fact(DisplayName = "Deve obter todos registros pelo repositório", Skip = "mongo local docker test")]
+#endif
         public async Task Deve_obter_Todos_Pelo_Repositorio()
         {
             //Given
@@ -60,7 +60,11 @@ namespace Optsol.Components.Test.Integration.Infra.MongoDB
         }
 
         [Trait("Infraestrutura", "MongoDB Respositório de Leitura")]
+#if DEBUG 
+        [Fact(DisplayName = "Deve obter o registro pelo id")]
+#elif RELEASE
         [Fact(DisplayName = "Deve obter o registro pelo id", Skip = "mongo local docker test")]
+#endif
         public async Task Deve_obter_Por_Id_Pelo_Repositorio()
         {
             //Given
@@ -98,7 +102,11 @@ namespace Optsol.Components.Test.Integration.Infra.MongoDB
         }
 
         [Trait("Infraestrutura", "MongoDB Repositório de Escrita")]
+#if DEBUG
+        [Theory(DisplayName = "Deve inserir o registro na base de dados")]
+#elif RELEASE
         [Theory(DisplayName = "Deve inserir o registro na base de dados", Skip = "mongo local docker test")]
+#endif
         [ClassData(typeof(InserirNovosRegistrosParams))]
         public async Task Deve_Inserir_Registro_Pelo_Repositorio(TestEntity entity)
         {
@@ -114,7 +122,8 @@ namespace Optsol.Components.Test.Integration.Infra.MongoDB
 
             //Then
             var entityResult = await readRepository.GetByIdAsync(entity.Id);
-            entityResult.IsValid.Should().BeTrue();
+            entityResult.Valid.Should().BeTrue();
+            entityResult.Invalid.Should().BeFalse();
             entityResult.Notifications.Should().HaveCount(0);
             entityResult.Should().NotBeNull();
             entityResult.Nome.ToString().Should().Be(entity.Nome.ToString());
@@ -123,7 +132,11 @@ namespace Optsol.Components.Test.Integration.Infra.MongoDB
         }
 
         [Trait("Infraestrutura", "MongoDB Respositório de Escrita")]
+#if DEBUG
+        [Theory(DisplayName = "Deve atualizar o registro obtido da base de dados")]
+#elif RELEASE
         [Theory(DisplayName = "Deve atualizar o registro obtido da base de dados", Skip = "mongo local docker test")]
+#endif
         [ClassData(typeof(InserirNovosRegistrosParams))]
         public async Task Deve_Atualizar_Registro_Pelo_Repositorio(TestEntity entity)
         {
@@ -152,7 +165,8 @@ namespace Optsol.Components.Test.Integration.Infra.MongoDB
             var entityResult = await testReadRepository.GetByIdAsync(entity.Id);
             entityResult.Should().NotBeNull();
 
-            entityResult.IsValid.Should().BeTrue();
+            entityResult.Valid.Should().BeTrue();
+            entityResult.Invalid.Should().BeFalse();
             entityResult.Notifications.Should().BeEmpty();
 
             entityResult.Nome.ToString().Should().Be(updateEntity.Nome.ToString());

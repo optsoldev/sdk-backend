@@ -5,10 +5,28 @@
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Settings\appsettings.cors.json" />
+    <None Remove="Settings\appsettings.elastic.json" />
+    <None Remove="Settings\appsettings.firebase.json" />
     <None Remove="Settings\appsettings.mongo.json" />
+    <None Remove="Settings\appsettings.rabbitmq.json" />
+    <None Remove="Settings\appsettings.redis.json" />
     <None Remove="Settings\appsettings.storage.json" />
+    <None Remove="Settings\component-e95de-firebase-adminsdk-bac2a-ee8ea40ece.json" />
+    <None Remove="Settings\Firebase\firebase-mobem.json" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Settings\appsettings.firebase.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Settings\appsettings.rabbitmq.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Settings\appsettings.redis.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Settings\appsettings.elastic.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="Settings\appsettings.cors.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
@@ -18,26 +36,35 @@
     <Content Include="Settings\appsettings.mongo.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="Settings\Firebase\firebase-mobem.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.9.4" />
+    <PackageReference Include="coverlet.msbuild" Version="3.1.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.10.0" />
     <PackageReference Include="xunit" Version="2.4.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.3">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="coverlet.collector" Version="3.0.3">
+    <PackageReference Include="coverlet.collector" Version="3.1.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="5.0.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="5.0.8" />
     <PackageReference Include="FluentAssertions" Version="5.10.3" />
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="8.1.1" />
     <PackageReference Include="AutoMapper" Version="10.1.1" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\playground\Optsol.Playground.Domain\Optsol.Playground.Domain.csproj" />
     <ProjectReference Include="..\..\src\Optsol.Components.CrossCutting\Optsol.Components.Infra.CrossCutting.csproj" />
     <ProjectReference Include="..\..\src\Optsol.Components.Domain\Optsol.Components.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Optsol.Components.Infra.ElasticSearch\Optsol.Components.Infra.ElasticSearch.csproj" />
     <ProjectReference Include="..\..\src\Optsol.Components.Infra.Storage\Optsol.Components.Infra.Storage.csproj" />
     <ProjectReference Include="..\..\src\Optsol.Components.Infra\Optsol.Components.Infra.csproj" />
     <ProjectReference Include="..\..\src\Optsol.Components.Service\Optsol.Components.Service.csproj" />
@@ -48,5 +75,8 @@
     <None Update="Anexos\anexo.jpg">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Infra\Firebase\" />
   </ItemGroup>
 </Project>

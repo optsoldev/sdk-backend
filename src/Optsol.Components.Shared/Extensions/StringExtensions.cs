@@ -1,6 +1,8 @@
 ﻿using Newtonsoft.Json;
+using Optsol.Components.Shared.Resolvers;
+using System.Text;
 
-namespace Optsol.Components.Shared.Extensions
+namespace System
 {
     public static class StringExtensions
     {
@@ -11,7 +13,20 @@ namespace Optsol.Components.Shared.Extensions
                 return default;
             }
 
-            return JsonConvert.DeserializeObject<T>(source);
+            return JsonConvert.DeserializeObject<T>(source, new JsonSerializerSettings
+            {
+                ContractResolver = new PrivateSetterContractResolver()
+            });
+        }
+
+        public static byte[] ToBytes(this string source)
+        {
+            return Encoding.UTF8.GetBytes(source);
+        }
+
+        public static bool IsEmpty(this string source)
+        {
+            return string.IsNullOrEmpty(source);
         }
     }
 }

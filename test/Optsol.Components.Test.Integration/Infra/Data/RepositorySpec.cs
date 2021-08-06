@@ -37,8 +37,10 @@ namespace Optsol.Components.Test.Integration.Infra.Data
                 options
                     .EnabledInMemory()
                     .EnabledLogging();
+
+                options
+                    .ConfigureRepositories<ITestReadRepository, TestReadRepository>("Optsol.Components.Test.Utils");
             });
-            services.AddRepository<ITestReadRepository, TestReadRepository>("Optsol.Components.Test.Utils");
 
             return services.BuildServiceProvider();
         }
@@ -53,8 +55,10 @@ namespace Optsol.Components.Test.Integration.Infra.Data
                 options
                     .EnabledInMemory()
                     .EnabledLogging();
+
+                options
+                    .ConfigureRepositories<ITestDeletableReadRepository, TestDeletableReadRepository>("Optsol.Components.Test.Utils");
             });
-            services.AddRepository<ITestDeletableReadRepository, TestDeletableReadRepository>("Optsol.Components.Test.Utils");
 
             return services.BuildServiceProvider();
         }
@@ -62,7 +66,7 @@ namespace Optsol.Components.Test.Integration.Infra.Data
         private static ServiceProvider GetProviderConfiguredServicesFromTenantContext(string tenantHost = "http://domain.tenant.one.com")
         {
             var services = new ServiceCollection();
-            var options = new RepositoryOptions();
+            var options = new RepositoryOptions(services);
             options
                 .EnabledInMemory()
                 .EnabledLogging();
@@ -74,9 +78,11 @@ namespace Optsol.Components.Test.Integration.Infra.Data
                 options
                     .EnabledInMemory()
                     .EnabledLogging();
+
+                options
+                    .ConfigureRepositories<ITestTenantReadRepository, TestTenantReadRepository>("Optsol.Components.Test.Utils");
             });
 
-            services.AddRepository<ITestTenantReadRepository, TestTenantReadRepository>(new[] { "Optsol.Components.Test.Utils" });
             services.AddSingleton<IHttpContextAccessor>(x => new HttpContextAccessorTest(tenantHost));
             services.AddSingleton<ITenantProvider, DataBaseTenantProvider>();
 
@@ -345,7 +351,8 @@ namespace Optsol.Components.Test.Integration.Infra.Data
 
             //Then
             var entityResult = await testReadRepository.GetByIdAsync(entity.Id);
-            entityResult.IsValid.Should().BeTrue();
+            entityResult.Valid.Should().BeTrue();
+            entityResult.Invalid.Should().BeFalse();
             entityResult.Notifications.Should().HaveCount(0);
             entityResult.Should().NotBeNull();
             entityResult.Nome.ToString().Should().Be(entity.Nome.ToString());
@@ -378,7 +385,8 @@ namespace Optsol.Components.Test.Integration.Infra.Data
             var entityResult = await testReadRepository.GetByIdAsync(entity.Id);
             entityResult.Should().NotBeNull();
 
-            entityResult.IsValid.Should().BeTrue();
+            entityResult.Valid.Should().BeTrue();
+            entityResult.Invalid.Should().BeFalse();
             entityResult.Notifications.Should().BeEmpty();
 
             entityResult.Nome.ToString().Should().Be(updateEntity.Nome.ToString());
@@ -527,8 +535,10 @@ namespace Optsol.Components.Test.Integration.Infra.Data
             await unitOfWork.CommitAsync();
 
             //Then
-            entity.IsValid.Should().BeFalse();
+            entity.Valid.Should().BeFalse();
+            entity.Invalid.Should().BeTrue();
             entity.Notifications.Should().NotBeEmpty();
+            entity.Notifications.Should().HaveCount(1);
 
             var result = await testReadRepository.GetByIdAsync(tenantId);
             result.Should().BeNull();
@@ -570,16 +580,6 @@ namespace Optsol.Components.Test.Integration.Infra.Data
                     tenants[2].Host,
                     3
                 };
-                yield return new object[] //Invalido
-                {
-                    new []
-                    {
-                        new TestTenantEntity (Guid.NewGuid(), new NomeValueObject("Tarik", "Oneal"), new EmailValueObject("semper.pretium.neque@malesuada.net")),
-                        new TestTenantEntity (Guid.NewGuid(), new NomeValueObject("Baxter", "Sexton"), new EmailValueObject("lacus@Aliquamgravida.co.uk"))
-                    },
-                    tenants[2].Host,
-                    0 //expectedEntityInTenant
-                };
             }
 
             IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
@@ -592,16 +592,7 @@ namespace Optsol.Components.Test.Integration.Infra.Data
         {
             //Given
             var provider = GetProviderConfiguredServicesFromTenantContext(tenantHost)
-                .CreateTenantTestEntitySeedInContext(0, (testTenantEntityList, tenantEntityList) =>
-                {
-                    foreach (var entity in entities)
-                    {
-                        if (expectedEntityInTenant != 0)
-                            entity.SetTenantId(tenantEntityList.First(f => f.Host == tenantHost).Id);
-                        else
-                            entity.SetTenantId(tenantEntityList.First(f => f.Host != tenantHost).Id);
-                    }
-                });
+                .CreateTenantTestEntitySeedInContext(0);
 
             var unitOfWork = provider.GetRequiredService<IUnitOfWork>();
             var testWriteRepository = provider.GetRequiredService<ITestTenantWriteRepository>();

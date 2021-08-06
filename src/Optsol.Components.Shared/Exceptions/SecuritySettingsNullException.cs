@@ -1,8 +1,10 @@
 using Microsoft.Extensions.Logging;
 using System;
+using System.Runtime.Serialization;
 
 namespace Optsol.Components.Shared.Exceptions
 {
+    [Serializable]
     public class SecuritySettingNullException: Exception
     {
         public SecuritySettingNullException(ILoggerFactory logger)
@@ -12,12 +14,19 @@ namespace Optsol.Components.Shared.Exceptions
             _logger?.LogCritical(
 @$"{nameof(SecuritySettingNullException)}:
 ""SecuritySettings"": {{
-    ""ApiName"": ""{{client-name}}"",
-    ""Authority"": ""{{http(s)://authority:port}}"",
-    ""IsDevelopment"": ""false|true"",
-  }}
+    ""ApiName"": ""name-webapi"",
+    ""Development"": true|false,
+    ""Authority"": {{
+        ""ClientId"": ""f008b483-7a32-413d-..."",
+        ""Endpoint"": ""http://ssodomain""
+    }}
+}}
 "
             );
+        }
+
+        protected SecuritySettingNullException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
         }
     }
 }

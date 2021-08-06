@@ -15,9 +15,9 @@ namespace Optsol.Playground.Infra.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .UseIdentityColumns()
                 .HasAnnotation("Relational:MaxIdentifierLength", 128)
-                .HasAnnotation("ProductVersion", "5.0.2");
+                .HasAnnotation("ProductVersion", "5.0.7")
+                .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
 
             modelBuilder.Entity("Optsol.Playground.Domain.Entities.CartaoCreditoEntity", b =>
                 {
@@ -60,7 +60,8 @@ namespace Optsol.Playground.Infra.Migrations
             modelBuilder.Entity("Optsol.Playground.Domain.Entities.ClienteEntity", b =>
                 {
                     b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("ClienteId");
 
                     b.Property<bool>("Ativo")
                         .HasColumnType("bit");
@@ -72,6 +73,26 @@ namespace Optsol.Playground.Infra.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Cliente");
+                });
+
+            modelBuilder.Entity("Optsol.Playground.Domain.Entities.ClientePessoaFisicaEntity", b =>
+                {
+                    b.HasBaseType("Optsol.Playground.Domain.Entities.ClienteEntity");
+
+                    b.Property<string>("Documento")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.ToTable("ClientePessoaFisica");
+                });
+
+            modelBuilder.Entity("Optsol.Playground.Domain.Entities.ClientePessoaJuridicaEntity", b =>
+                {
+                    b.HasBaseType("Optsol.Playground.Domain.Entities.ClienteEntity");
+
+                    b.Property<string>("NumeroCnpj")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.ToTable("ClientePessoaJuridica");
                 });
 
             modelBuilder.Entity("Optsol.Playground.Domain.Entities.CartaoCreditoEntity", b =>
@@ -134,6 +155,24 @@ namespace Optsol.Playground.Infra.Migrations
                     b.Navigation("Email");
 
                     b.Navigation("Nome");
+                });
+
+            modelBuilder.Entity("Optsol.Playground.Domain.Entities.ClientePessoaFisicaEntity", b =>
+                {
+                    b.HasOne("Optsol.Playground.Domain.Entities.ClienteEntity", null)
+                        .WithOne()
+                        .HasForeignKey("Optsol.Playground.Domain.Entities.ClientePessoaFisicaEntity", "Id")
+                        .OnDelete(DeleteBehavior.ClientCascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Optsol.Playground.Domain.Entities.ClientePessoaJuridicaEntity", b =>
+                {
+                    b.HasOne("Optsol.Playground.Domain.Entities.ClienteEntity", null)
+                        .WithOne()
+                        .HasForeignKey("Optsol.Playground.Domain.Entities.ClientePessoaJuridicaEntity", "Id")
+                        .OnDelete(DeleteBehavior.ClientCascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Optsol.Playground.Domain.Entities.ClienteEntity", b =>

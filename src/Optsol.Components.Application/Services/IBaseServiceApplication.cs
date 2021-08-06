@@ -1,7 +1,6 @@
 using Optsol.Components.Application.DataTransferObjects;
 using Optsol.Components.Domain.Entities;
 using Optsol.Components.Domain.Pagination;
-using Optsol.Components.Infra.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,32 +8,33 @@ using System.Threading.Tasks;
 
 namespace Optsol.Components.Application.Services
 {
-    public interface IBaseServiceApplication : IDisposable { }
+    public interface IBaseServiceApplication { };
 
-    public interface IBaseServiceApplication<TEntity, TGetByIdDto, TGetAllDto, TInsertData, TUpdateData> : IBaseServiceApplication
+    public interface IBaseServiceApplication<TEntity> : IBaseServiceApplication
         where TEntity : AggregateRoot
-        where TGetByIdDto : BaseDataTransferObject
-        where TGetAllDto : BaseDataTransferObject
-        where TInsertData : BaseDataTransferObject
-        where TUpdateData : BaseDataTransferObject
     {
         Func<IQueryable<TEntity>, IQueryable<TEntity>> Includes { get; set; }
 
-        Task<TGetByIdDto> GetByIdAsync(Guid id);
+        Task<TResponse> GetByIdAsync<TResponse>(Guid id)
+            where TResponse : BaseDataTransferObject;
 
-        Task<IEnumerable<TGetByIdDto>> GetByIdsAsync(IEnumerable<Guid> id);
+        Task<IEnumerable<TResponse>> GetByIdsAsync<TResponse>(IEnumerable<Guid> ids)
+            where TResponse : BaseDataTransferObject;
 
-        Task<IEnumerable<TGetAllDto>> GetAllAsync();
+        Task<IEnumerable<TResponse>> GetAllAsync<TResponse>()
+            where TResponse : BaseDataTransferObject;
 
-        Task<SearchResult<TGetAllDto>> GetAllAsync<TSearch>(ISearchRequest<TSearch> requestSearch) where TSearch : class;
+        Task<ISearchResult<TResponse>> GetAllAsync<TResponse, TSearch>(ISearchRequest<TSearch> requestSearch)
+            where TSearch : class
+            where TResponse : BaseDataTransferObject;
 
-        Task<TInsertData> InsertAsync(TInsertData data);
+        Task<TResponse> InsertAsync<TRequest, TResponse>(TRequest data)
+            where TRequest : BaseDataTransferObject
+            where TResponse : BaseDataTransferObject;
 
-        Task<TCustom> InsertAsync<TCustom>(TInsertData data) where TCustom : BaseDataTransferObject;
-
-        Task<TUpdateData> UpdateAsync(TUpdateData data);
-
-        Task<TCustom> UpdateAsync<TCustom>(TUpdateData data) where TCustom : BaseDataTransferObject;
+        Task<TResponse> UpdateAsync<TRequest, TResponse>(Guid id, TRequest data)
+            where TRequest : BaseDataTransferObject
+            where TResponse : BaseDataTransferObject;
 
         Task DeleteAsync(Guid id);
     }

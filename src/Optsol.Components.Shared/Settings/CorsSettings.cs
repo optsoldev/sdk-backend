@@ -11,10 +11,9 @@ namespace Optsol.Components.Shared.Settings
 
         public override void Validate()
         {
-            var defaultPolicyIsNullOrEmpty = string.IsNullOrEmpty(DefaultPolicy);
-            if (defaultPolicyIsNullOrEmpty)
+            if (DefaultPolicy.IsEmpty())
             {
-                throw new ArgumentNullException(nameof(DefaultPolicy));
+                ShowingException(nameof(DefaultPolicy));
             }
         }
     }
@@ -27,10 +26,9 @@ namespace Optsol.Components.Shared.Settings
 
         public override void Validate()
         {
-            var nameIsNullOrEmpty = string.IsNullOrEmpty(Name);
-            if (nameIsNullOrEmpty)
+            if (Name.IsEmpty())
             {
-                throw new ArgumentNullException(nameof(nameIsNullOrEmpty));
+                ShowingException(nameof(Name));
             }
         }
     }

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore;
+﻿using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -11,44 +11,34 @@ namespace Optsol.Components.Service.Programs
 {
     public class BaseProgram
     {
+        protected BaseProgram() { }
+
         public static IHostBuilder CreateHostBuilder<TStartup>(string[] args)
             where TStartup : class
-            => Host.CreateDefaultBuilder(args)
-            .ConfigureWebHostDefaults(webBuilder =>
-            {
-                webBuilder.UseStartup<TStartup>();
-            }).ConfigureAppConfiguration((context, configuration) =>
-            {
-                IHostEnvironment env = context.HostingEnvironment;
+        {
+            return Host
+                  .CreateDefaultBuilder(args)
+                  .ConfigureWebHostDefaults(webBuilder =>
+                  {
+                      webBuilder.UseStartup<TStartup>();
+                  }).ConfigureAppConfiguration((context, configuration) =>
+                  {
+                      var buildConfiguration = configuration.Build();
 
-                configuration
-                    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-                    .AddJsonFile($"appsettings.{env.EnvironmentName}.json", true, true);
+                      var logger = new LoggerConfiguration()
+                          .ReadFrom.Configuration(buildConfiguration)
+                          .WriteTo.Console();
 
-                var buildConfiguration = configuration.Build();
+                      Log.Logger = logger.CreateLogger();
 
-                var logger = new LoggerConfiguration()
-                    .ReadFrom.Configuration(buildConfiguration)
-                    .WriteTo.Console();
+                      logger.ConfigureLogElasticStack(context.HostingEnvironment, buildConfiguration);
 
-                var elasticSearchSettings = buildConfiguration.GetSection(nameof(ElasticSearchSettings)).Get<ElasticSearchSettings>();
-                var elasticSearchSettingsIsValid = elasticSearchSettings != null && !string.IsNullOrEmpty(elasticSearchSettings.Uri);
-                if (elasticSearchSettingsIsValid)
-                {
-                    var indexNameFormat = $"{elasticSearchSettings.IndexName}-logs-{env.EnvironmentName?.ToLower().Replace(".", "-")}-{DateTime.UtcNow:yyyy-MM}";
+                      logger.ConfigureLogApplicationInsights(context.HostingEnvironment, buildConfiguration);
+                  })
+                  .UseSerilog();
+        }
 
-                    logger = logger.WriteTo.Elasticsearch(new ElasticsearchSinkOptions(new Uri(elasticSearchSettings.Uri))
-                    {
-                        IndexFormat = indexNameFormat
-                    });
-                }
-
-                Log.Logger = logger.CreateLogger();
-
-            }).UseSerilog();
-
-        public static void Start<TStatup>(IHostBuilder createHostBuilder)
-            where TStatup : class
+        public static void Start(IHostBuilder createHostBuilder)
         {
             try
             {
@@ -65,6 +55,48 @@ namespace Optsol.Components.Service.Programs
             {
                 Log.CloseAndFlush();
             }
+        }
+    }
+
+    public static class BaseProgramExtensions
+    {
+        public static LoggerConfiguration ConfigureLogApplicationInsights(this LoggerConfiguration logger, IHostEnvironment hostingEnvironment, IConfigurationRoot configuration)
+        {
+            if (hostingEnvironment.IsDevelopment())
+                return logger;
+
+            var applicationInsightsSettings = configuration.GetSection(nameof(ApplicationInsightsSettings)).Get<ApplicationInsightsSettings>();
+            if (applicationInsightsSettings == null)
+                return logger;
+
+            Log.Information($"Configure Application Insights Log: {hostingEnvironment.EnvironmentName}");
+
+            applicationInsightsSettings.Validate();
+
+            logger.WriteTo.ApplicationInsights(new TelemetryConfiguration(applicationInsightsSettings.InstrumentationKey), TelemetryConverter.Traces);
+
+            return logger;
+        }
+
+        public static LoggerConfiguration ConfigureLogElasticStack(this LoggerConfiguration logger, IHostEnvironment hostingEnvironment, IConfigurationRoot configuration)
+        {
+            if (hostingEnvironment.IsDevelopment())
+                return logger;
+
+            var elasticSearchSettings = configuration.GetSection(nameof(ElasticSearchSettings)).Get<ElasticSearchSettings>();
+            if (elasticSearchSettings == null)
+                return logger;
+
+            Log.Information($"Configure Elastic Stack Log: {hostingEnvironment.EnvironmentName}");
+
+            elasticSearchSettings.Validate();
+
+            logger = logger.WriteTo.Elasticsearch(new ElasticsearchSinkOptions(new Uri(elasticSearchSettings.Uri))
+            {
+                IndexFormat = $"{elasticSearchSettings.IndexName}-logs-{hostingEnvironment.EnvironmentName.ToLower().Replace(".", "-")}-{DateTime.UtcNow:yyyy-MM}"
+            });
+
+            return logger;
         }
     }
 }

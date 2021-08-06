@@ -1,14 +1,13 @@
-﻿using IdentityModel.Client;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Logging;
+using Optsol.Components.Infra.Security.Services;
 using Optsol.Components.Shared.Exceptions;
 using Optsol.Components.Shared.Settings;
 using System;
 using System.Linq;
-using System.Net.Http;
+using System.Net.Http.Headers;
 
 namespace Optsol.Components.Infra.Security.Attributes
 {
@@ -16,31 +15,33 @@ namespace Optsol.Components.Infra.Security.Attributes
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true, Inherited = true)]
     public class OptsolAuthorizeAttribute : TypeFilterAttribute
     {
-        public OptsolAuthorizeAttribute(string claim) : base(typeof(OptsolAuthorizeFilter))
+        public OptsolAuthorizeAttribute(params string[] claims) : base(typeof(OptsolAuthorizeFilterAttribute))
         {
-            Arguments = new object[] { claim };
+            Arguments = new object[] { claims };
 
         }
     }
 
-    public class OptsolAuthorizeFilter : AuthorizeAttribute, IAuthorizationFilter
+    public class OptsolAuthorizeFilterAttribute : AuthorizeAttribute, IAuthorizationFilter
     {
-        private string _claim;
+        private readonly string[] _claim;
 
         private readonly SecuritySettings _securitySettings;
+        private readonly IAuthorityService _authorityService;
 
-        public OptsolAuthorizeFilter(SecuritySettings securitySettings, ILoggerFactory logger, string claim)
+        public OptsolAuthorizeFilterAttribute(SecuritySettings securitySettings, IAuthorityService authorityService, ILoggerFactory logger, params string[] claims)
         {
-            _claim = claim;
+            _claim = claims;
 
             _securitySettings = securitySettings ?? throw new SecuritySettingNullException(logger);
+            _authorityService = authorityService ?? throw new ArgumentNullException(nameof(authorityService));
 
             AuthenticationSchemes = "Bearer";
         }
 
         public void OnAuthorization(AuthorizationFilterContext context)
         {
-            if (_securitySettings.IsDevelopment)
+            if (_securitySettings.Development)
             {
                 ContextLocalSecurity(context);
             }
@@ -53,8 +54,9 @@ namespace Optsol.Components.Infra.Security.Attributes
         private void ContextLocalSecurity(AuthorizationFilterContext context)
         {
             var contextUser = context.HttpContext.User;
-            var userAuthenticateHasClaim = contextUser.Claims.Any(w => w.Type.Equals("optsol")
-                && w.Value.Equals(_claim, StringComparison.OrdinalIgnoreCase));
+            var userAuthenticateHasClaim = contextUser.Claims
+                .Any(w => w.Type.Equals("optsol")
+                    && _claim.Contains(w.Value));
 
             if (userAuthenticateHasClaim)
             {
@@ -66,27 +68,18 @@ namespace Optsol.Components.Infra.Security.Attributes
 
         private void ContextRemoteSecurity(AuthorizationFilterContext context)
         {
-            //var accessToken = context.HttpContext.GetTokenAsync("Bearer", "access_token")
-            //    .GetAwaiter()
-            //    .GetResult();
+            var accessToken = context.HttpContext.Request.Headers["Authorization"];
+            var parse = AuthenticationHeaderValue.Parse(accessToken);
 
-            //var client = new HttpClient();
-            //client.SetBearerToken(accessToken);
+            var response = _authorityService.GetValidateAccess(parse.Parameter, _claim)
+                .GetAwaiter()
+                .GetResult();
 
-            //var response = client
-            //    .GetUserInfoAsync(new UserInfoRequest
-            //    {
-            //        Address = $"{_securitySettings.Authority}/connect/userinfo",
-            //        Token = accessToken,
-            //    })
-            //    .GetAwaiter()
-            //    .GetResult();
-
-            //var userAuthenticateHasClaim = response.Claims.Any(c => c.Type.Equals("optsol") && c.Value.Equals(_claim, StringComparison.OrdinalIgnoreCase));
-            //if (userAuthenticateHasClaim)
-            //{
-            //    return;
-            //}
+            var userAuthenticateHasClaim = _claim.All(claim => response.HasAccess(claim));
+            if (userAuthenticateHasClaim)
+            {
+                return;
+            }
 
             context.Result = new UnauthorizedResult();
         }

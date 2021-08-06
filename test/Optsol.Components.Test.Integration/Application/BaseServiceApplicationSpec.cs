@@ -21,7 +21,7 @@ namespace Optsol.Components.Test.Integration.Application
             var services = new ServiceCollection();
 
             services.AddLogging();
-            services.AddAutoMapper(typeof(TestViewModel));
+            services.AddAutoMapper(typeof(TestResponseDto));
             services.AddDomainNotifications();
             services.AddContext<Context>(options =>
             {
@@ -29,7 +29,11 @@ namespace Optsol.Components.Test.Integration.Application
                     .EnabledInMemory()
                     .EnabledLogging();
             });
-            services.AddApplications<ITestServiceApplication, TestServiceApplication>("Optsol.Components.Test.Utils");
+            services.AddApplications(options =>
+            {
+                options
+                    .ConfigureServices<ITestServiceApplication, TestServiceApplication>("Optsol.Components.Test.Utils");
+            });
 
             return services.BuildServiceProvider();
         }
@@ -46,12 +50,13 @@ namespace Optsol.Components.Test.Integration.Application
             var serviceApplication = provider.GetRequiredService<ITestServiceApplication>();
 
             //When
-            var viewModels = await serviceApplication.GetAllAsync();
+            var viewModels = await serviceApplication.GetAllAsync<TestResponseDto>();
 
             //Then
             viewModels.Should().NotBeEmpty();
             viewModels.Should().HaveCount(numberItems);
-            viewModels.Any(w => w.IsValid).Should().BeTrue();
+            viewModels.All(w => w.Valid).Should().BeTrue();
+            viewModels.All(w => w.Invalid).Should().BeFalse();
         }
 
         [Trait("Serviço de Aplicação", "Execução dos Serviços")]
@@ -71,7 +76,7 @@ namespace Optsol.Components.Test.Integration.Application
             var serviceApplication = provider.GetRequiredService<ITestServiceApplication>();
 
             //When
-            var viewModel = await serviceApplication.GetByIdAsync(entity.Id);
+            var viewModel = await serviceApplication.GetByIdAsync<TestResponseDto>(entity.Id);
 
             //Then
             viewModel.Should().NotBeNull();
@@ -79,8 +84,8 @@ namespace Optsol.Components.Test.Integration.Application
             viewModel.Contato.Should().Be(entity.Email.ToString());
 
             viewModel.Validate();
-            //viewModel.Invalid.Should().BeFalse();
-            viewModel.IsValid.Should().BeTrue();
+            viewModel.Valid.Should().BeTrue();
+            viewModel.Invalid.Should().BeFalse();
             viewModel.Notifications.Should().BeEmpty();
         }
 
@@ -90,7 +95,7 @@ namespace Optsol.Components.Test.Integration.Application
             {
                 yield return new object[]
                 {
-                    new InsertTestViewModel()
+                    new TestRequestDto()
                     {
                         Nome = "Weslley Carneiro",
                         Contato = "weslley.carneiro@optsol.com.br"
@@ -99,7 +104,7 @@ namespace Optsol.Components.Test.Integration.Application
 
                 yield return new object[]
                 {
-                    new InsertTestViewModel()
+                    new TestRequestDto()
                     {
                         Nome = "Felipe Carvalho",
                         Contato = "felipe.carvalho@optsol.com.br"
@@ -108,7 +113,7 @@ namespace Optsol.Components.Test.Integration.Application
 
                 yield return new object[]
                 {
-                    new InsertTestViewModel()
+                    new TestRequestDto()
                     {
                         Nome = "Romulo Louzada",
                         Contato = "romulo.louzada@optsol.com.br"
@@ -122,7 +127,7 @@ namespace Optsol.Components.Test.Integration.Application
         [Trait("Serviço de Aplicação", "Execução dos Serviços")]
         [Theory(DisplayName = "Deve inserir registro na base de dados")]
         [ClassData(typeof(InserirNovosRegistrosParams))]
-        public void Deve_Inserir_Registro_Pelo_Servico(InsertTestViewModel viewmModel)
+        public void Deve_Inserir_Registro_Pelo_Servico(TestRequestDto testRequestDto)
         {
             //Given
             var provider = GetProviderConfiguredServicesFromContext();
@@ -131,7 +136,7 @@ namespace Optsol.Components.Test.Integration.Application
             var notificationContext = provider.GetRequiredService<NotificationContext>();
 
             //When
-            Action action = () => serviceApplication.InsertAsync(viewmModel);
+            Action action = () => serviceApplication.InsertAsync<TestRequestDto, TestResponseDto>(testRequestDto);
 
             //Then
             action.Should().NotThrow();
@@ -156,13 +161,12 @@ namespace Optsol.Components.Test.Integration.Application
             var notificationContext = provider.GetRequiredService<NotificationContext>();
             var serviceApplication = provider.GetRequiredService<ITestServiceApplication>();
 
-            var updateModel = new UpdateTestViewModel();
-            updateModel.Id = entity.Id;
+            var updateModel = new TestRequestDto();
             updateModel.Nome = $"{entity.Nome.Nome} Alterado";
             updateModel.Contato = entity.Email.ToString();
 
             //When
-            Action action = () => serviceApplication.UpdateAsync(updateModel);
+            Action action = () => serviceApplication.UpdateAsync<TestRequestDto, TestResponseDto>(entity.Id, updateModel);
 
             //Then
             action.Should().NotThrow();
@@ -170,13 +174,14 @@ namespace Optsol.Components.Test.Integration.Application
             notificationContext.HasNotifications.Should().BeFalse();
             notificationContext.Notifications.Should().HaveCount(0);
 
-            var viewModelResult = await serviceApplication.GetByIdAsync(updateModel.Id);
+            var viewModelResult = await serviceApplication.GetByIdAsync<TestResponseDto>(entity.Id);
             viewModelResult.Should().NotBeNull();
 
-            viewModelResult.IsValid.Should().BeTrue();
+            viewModelResult.Valid.Should().BeTrue();
+            viewModelResult.Invalid.Should().BeFalse();
             viewModelResult.Notifications.Should().BeEmpty();
 
-            viewModelResult.Id.Should().Be(updateModel.Id);
+            viewModelResult.Id.Should().Be(entity.Id);
             viewModelResult.Nome.Should().Be(updateModel.Nome);
             viewModelResult.Contato.Should().Be(updateModel.Contato);
         }
@@ -206,7 +211,7 @@ namespace Optsol.Components.Test.Integration.Application
             notificationContext.HasNotifications.Should().BeFalse();
             notificationContext.Notifications.Should().BeEmpty();
 
-            var viewModelResult = await serviceApplication.GetByIdAsync(entity.Id);
+            var viewModelResult = await serviceApplication.GetByIdAsync<TestResponseDto>(entity.Id);
             viewModelResult.Should().BeNull();
         }
 
@@ -216,43 +221,43 @@ namespace Optsol.Components.Test.Integration.Application
             {
                 yield return new object[]
                 {
-                    new InsertTestViewModel()
+                    new TestRequestDto()
                     {
                         Nome = "",
                         Contato = "weslley.carneiro@optsol.com.br"
                     },
                     new [] //expectedErrorProperty
                     {
-                        nameof(InsertTestViewModel.Nome)
+                        nameof(TestRequestDto.Nome)
                     },
                     1 //expectedErrosCount
                 };
 
                 yield return new object[]
                 {
-                    new InsertTestViewModel()
+                    new TestRequestDto()
                     {
                         Nome = "Felipe Carvalho",
                         Contato = ""
                     },
                     new [] //expectedErrorProperty
                     {
-                        nameof(InsertTestViewModel.Contato)
+                        nameof(TestRequestDto.Contato)
                     },
                     1 //expectedErrosCount
                 };
 
                 yield return new object[]
                 {
-                    new InsertTestViewModel()
+                    new TestRequestDto()
                     {
                         Nome = "",
                         Contato = "mail.invalido"
                     },
                     new [] //expectedErrorProperty
                     {
-                        nameof(InsertTestViewModel.Nome),
-                        nameof(InsertTestViewModel.Contato)
+                        nameof(TestRequestDto.Nome),
+                        nameof(TestRequestDto.Contato)
                     },
                     2 //expectedErrosCount
                 };
@@ -264,7 +269,7 @@ namespace Optsol.Components.Test.Integration.Application
         [Trait("Serviço de Aplicação", "Execução dos Serviços")]
         [Theory(DisplayName = "Não deve inserir registro na base de dados")]
         [ClassData(typeof(InserirNovosRegistrosComFalhasParams))]
-        public void Nao_Deve_Inserir_Registro_Pelo_Servico(InsertTestViewModel viewModel, string[] expectedErrorProperty, int expectedErrosCount)
+        public void Nao_Deve_Inserir_Registro_Pelo_Servico(TestRequestDto viewModel, string[] expectedErrorProperty, int expectedErrosCount)
         {
             //Given
             var provider = GetProviderConfiguredServicesFromContext();
@@ -273,7 +278,7 @@ namespace Optsol.Components.Test.Integration.Application
             var notificationContext = provider.GetRequiredService<NotificationContext>();
 
             //When
-            Action action = () => serviceApplication.InsertAsync(viewModel);
+            Action action = () => serviceApplication.InsertAsync<TestRequestDto, TestRequestDto>(viewModel);
 
             //Then
             action.Should().NotThrow();
@@ -289,43 +294,43 @@ namespace Optsol.Components.Test.Integration.Application
             {
                 yield return new object[]
                 {
-                    new UpdateTestViewModel()
+                    new TestRequestDto()
                     {
                         Nome = "",
                         Contato = "weslley.carneiro@optsol.com.br"
                     },
                     new [] //expectedErrorProperty
                     {
-                        nameof(UpdateTestViewModel.Nome)
+                        nameof(TestRequestDto.Nome)
                     },
                     1 //expectedErrosCount
                 };
 
                 yield return new object[]
                 {
-                    new UpdateTestViewModel()
+                    new TestRequestDto()
                     {
                         Nome = "Felipe Carvalho",
                         Contato = ""
                     },
                     new [] //expectedErrorProperty
                     {
-                        nameof(UpdateTestViewModel.Contato)
+                        nameof(TestRequestDto.Contato)
                     },
                     1 //expectedErrosCount
                 };
 
                 yield return new object[]
                 {
-                    new UpdateTestViewModel()
+                    new TestRequestDto()
                     {
                         Nome = "",
                         Contato = "mail.invalido"
                     },
                     new [] //expectedErrorProperty
                     {
-                        nameof(UpdateTestViewModel.Nome),
-                        nameof(UpdateTestViewModel.Contato)
+                        nameof(TestRequestDto.Nome),
+                        nameof(TestRequestDto.Contato)
                     },
                     2 //expectedErrosCount
                 };
@@ -337,20 +342,21 @@ namespace Optsol.Components.Test.Integration.Application
         [Trait("Serviço de Aplicação", "Execução dos Serviços")]
         [Theory(DisplayName = "Não deve atualizar os registros obtidos na base de dados")]
         [ClassData(typeof(AtualizarRegistrosComFalhasParams))]
-        public void Nao_Deve_Atualizar_Registro_Pelo_Servico(UpdateTestViewModel viewModel, string[] expectedErrorProperty, int expectedErrosCount)
+        public void Nao_Deve_Atualizar_Registro_Pelo_Servico(TestRequestDto viewModel, string[] expectedErrorProperty, int expectedErrosCount)
         {
             //Given
+            Guid viewModelId = default;
             var provider = GetProviderConfiguredServicesFromContext()
                 .CreateTestEntitySeedInContext(afterInsert: (testEntityList) =>
-                {   
-                    viewModel.Id = testEntityList.First().Id;
+                {
+                    viewModelId = testEntityList.First().Id;
                 });
 
             var notificationContext = provider.GetRequiredService<NotificationContext>();
             var serviceApplication = provider.GetRequiredService<ITestServiceApplication>();
 
             //When
-            Action action = () => serviceApplication.UpdateAsync(viewModel);
+            Action action = () => serviceApplication.UpdateAsync<TestRequestDto, TestResponseDto>(viewModelId, viewModel);
 
             //Then
             action.Should().NotThrow();

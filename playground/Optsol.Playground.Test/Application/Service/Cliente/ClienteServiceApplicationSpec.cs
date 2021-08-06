@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Optsol.Components.Infra.Data;
 using Optsol.Components.Infra.UoW;
 using Optsol.Components.Shared.Extensions;
 using Optsol.Playground.Application.Mappers.Cliente;
@@ -20,7 +21,7 @@ namespace Optsol.Playground.Test
 {
     public class ClienteServiceApplicationSpec
     {
-        protected IServiceProvider _serviceProvider { get; private set; }
+        protected IServiceProvider _serviceProvider;
 
         public ClienteServiceApplicationSpec()
         {
@@ -37,32 +38,41 @@ namespace Optsol.Playground.Test
                 options
                     .EnabledInMemory()
                     .EnabledLogging();
+
+                options
+                    .ConfigureRepositories<IClientePessoaFisicaReadRepository, ClienteReadRepository>("Optsol.Playground.Domain", "Optsol.Playground.Infra");
             });
             services.AddDomainNotifications();
-            services.AddRepository<IClienteReadRepository, ClienteReadRepository>("Optsol.Playground.Domain", "Optsol.Playground.Infra");
-            services.AddApplications<IClienteServiceApplication, ClienteServiceApplication>("Optsol.Playground.Application");
+            services.AddApplications(options =>
+            {
+                options
+                    .ConfigureServices<IClienteServiceApplication, ClienteServiceApplication>("Optsol.Playground.Application");
+            });
             services.AddServices();
             services.AddAutoMapper(typeof(ClienteViewModelToEntityMapper));
 
             _serviceProvider = services.BuildServiceProvider();
         }
 
-        [Fact]
+        [Trait("Playground", "Application")]
+        [Fact(DisplayName = "Deve inserir cliente sem o cartao")]
         public async Task Deve_Inserir_Cliente_Sem_Cartao()
         {
             //Given
             var clienteServiceApplication = _serviceProvider.GetRequiredService<IClienteServiceApplication>();
 
-            var insertClienteViewModel = new InsertClienteViewModel();
-            insertClienteViewModel.Nome = "Weslley";
-            insertClienteViewModel.SobreNome = "Bruno";
-            insertClienteViewModel.Email = "weslley@outlook.com";
+            ClienteRequest insertClienteViewModel = new()
+            {
+                Nome = "Weslley",
+                SobreNome = "Bruno",
+                Email = "weslley@outlook.com"
+            };
 
             //When
-            await clienteServiceApplication.InsertAsync(insertClienteViewModel);
+            await clienteServiceApplication.InsertAsync<ClienteRequest, ClienteRequest>(insertClienteViewModel);
 
             //Then
-            var clienteReadRepository = _serviceProvider.GetRequiredService<IClienteReadRepository>();
+            var clienteReadRepository = _serviceProvider.GetRequiredService<IClientePessoaFisicaReadRepository>();
             var clientes = await clienteReadRepository.GetAllAsync();
 
             clientes.Should().HaveCount(1);
@@ -72,35 +82,38 @@ namespace Optsol.Playground.Test
             cliente.Email.Email.Should().Be(insertClienteViewModel.Email);
             cliente.PossuiCartao.Should().BeFalse();
             cliente.Ativo.Should().BeFalse();
-            cliente.IsValid.Should().BeTrue();
-
+            cliente.Valid.Should().BeTrue();
+            cliente.Invalid.Should().BeFalse();
         }
 
-        [Fact]
+        [Trait("Playground", "Application")]
+        [Fact(DisplayName = "Deve inserir cartão no cliente")]
         public async Task Deve_Inserir_Cartao_No_Cliente()
         {
             //Given
-            var clienteWriteRepository = _serviceProvider.GetRequiredService<IClienteWriteRepository>();
+            var clienteWriteRepository = _serviceProvider.GetRequiredService<IClientePessoaFisicaWriteRepository>();
             var clienteServiceApplication = _serviceProvider.GetRequiredService<IClienteServiceApplication>();
             var uow = _serviceProvider.GetRequiredService<IUnitOfWork>();
 
-            var clienteEntity = new ClienteEntity(new NomeValueObject("Weslley", "Bruno"), new EmailValueObject("weslley@outlook.com.br"));
+            var ClientePessoaFisicaEntity = new ClientePessoaFisicaEntity(new NomeValueObject("Weslley", "Bruno"), new EmailValueObject("weslley@outlook.com.br"), "000.000.000-00");
 
-            var insertCartaoCreditoViewModel = new InsertCartaoCreditoViewModel();
-            insertCartaoCreditoViewModel.ClienteId = clienteEntity.Id;
-            insertCartaoCreditoViewModel.NomeCliente = "Weslley B. Carneiro";
-            insertCartaoCreditoViewModel.Numero = "12345687415241548";
-            insertCartaoCreditoViewModel.CodigoVerificacao = "854";
-            insertCartaoCreditoViewModel.Validade = new DateTime(2030, 11, 30);
+            CartaoCreditoRequest insertCartaoCreditoViewModel = new()
+            {
+                ClienteId = ClientePessoaFisicaEntity.Id,
+                NomeCliente = "Weslley B. Carneiro",
+                Numero = "12345687415241548",
+                CodigoVerificacao = "854",
+                Validade = new DateTime(2030, 11, 30)
+            };
 
             //When
-            await clienteWriteRepository.InsertAsync(clienteEntity);
+            await clienteWriteRepository.InsertAsync(ClientePessoaFisicaEntity);
             await uow.CommitAsync();
 
             await clienteServiceApplication.InserirCartaoNoClienteAsync(insertCartaoCreditoViewModel);
 
             //Then
-            var clienteReadRepository = _serviceProvider.GetRequiredService<IClienteReadRepository>();
+            var clienteReadRepository = _serviceProvider.GetRequiredService<IClientePessoaFisicaReadRepository>();
             var clientes = await clienteReadRepository.BuscarClientesComCartaoCreditoAsync().AsyncEnumerableToEnumerable();
 
             clientes.Should().HaveCount(1);
@@ -115,7 +128,8 @@ namespace Optsol.Playground.Test
             cartao.CodigoVerificacao.Should().Be(insertCartaoCreditoViewModel.CodigoVerificacao);
             cartao.Validade.Should().Be(insertCartaoCreditoViewModel.Validade);
             cartao.Valido.Should().BeTrue();
-            cartao.IsValid.Should().BeTrue();
+            cartao.Valid.Should().BeTrue();
+            cartao.Invalid.Should().BeFalse();
         }
     }
 }

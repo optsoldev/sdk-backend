@@ -1,12 +1,16 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Optsol.Components.Infra.Security.Attributes;
 using Optsol.Playground.Application.ViewModels.CartaoCredito;
 using System;
 using System.Threading.Tasks;
 
 namespace Optsol.Playground.Api.Controllers
 {
+    [Authorize]
     public partial class ClienteController
     {
+        [OptsolAuthorize("cliente.buscar")]
         [HttpGet("{id}/cartao-credito")]
         public async Task<IActionResult> GetClienteComCartaoCredito(Guid id)
         {
@@ -16,7 +20,7 @@ namespace Optsol.Playground.Api.Controllers
         }
 
         [HttpPost("cartao-credito")]
-        public async Task<IActionResult> InserirCartaoNoCliente([FromBody] InsertCartaoCreditoViewModel insertCartaoCreditoViewModel)
+        public async Task<IActionResult> InserirCartaoNoCliente([FromBody] CartaoCreditoRequest insertCartaoCreditoViewModel)
         {
             await _clienteServiceApplication.InserirCartaoNoClienteAsync(insertCartaoCreditoViewModel);
 

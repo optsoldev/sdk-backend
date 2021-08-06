@@ -1,27 +1,41 @@
-﻿using MongoDB.Driver;
+﻿using Microsoft.Extensions.Logging;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Serializers;
+using MongoDB.Driver;
 using Optsol.Components.Shared.Settings;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Authentication;
 using System.Threading.Tasks;
 
 namespace Optsol.Components.Infra.MongoDB.Context
 {
     public class MongoContext : IDisposable
     {
+        private bool _disposed = false;
+
+        private readonly ILogger _logger;
+
         protected IMongoDatabase _database;
 
         protected readonly List<Func<Task>> _commands;
 
         protected readonly MongoSettings _mongoSettings;
 
+        private static ConcurrentDictionary<Type, IBsonSerializer> _cache = new ConcurrentDictionary<Type, IBsonSerializer>();
+
         public IClientSessionHandle Session { get; set; }
 
-        public MongoClient MongoClient { get; set; }
+        public MongoClient MongoClient { get; protected set; }
 
-        public MongoContext(MongoSettings mongoSettings)
+        public MongoContext(MongoSettings mongoSettings, ILoggerFactory logger)
         {
-            _mongoSettings = mongoSettings;
+            _logger = logger?.CreateLogger(nameof(MongoContext));
+            _logger?.LogInformation("Inicializando MongoContext");  
+
+            _mongoSettings = mongoSettings ?? throw new ArgumentNullException(nameof(mongoSettings));
 
             _commands = new List<Func<Task>>();
 
@@ -58,27 +72,47 @@ namespace Optsol.Components.Infra.MongoDB.Context
 
             return countSaveTasks;
         }
-        
+
         public void AddCommand(Func<Task> command)
         {
             _commands.Add(command);
         }
-        
+
         public void Dispose()
         {
-            Session?.Dispose();
+            Dispose(true);
             GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            _logger?.LogInformation($"Método: { nameof(Dispose) }()");
+
+            if (!_disposed && disposing)
+            {
+                Session?.Dispose();
+            }
+            _disposed = true;
         }
 
         private void Configure()
         {
-            var mongoClintIsNull = MongoClient != null;
-            if (mongoClintIsNull)
+            var mongoClintNotNull = MongoClient != null;
+            if (mongoClintNotNull)
             {
                 return;
             }
 
-            MongoClient = new MongoClient(_mongoSettings.ConnectionString);
+            MongoClientSettings settings = MongoClientSettings.FromUrl(
+              new MongoUrl(_mongoSettings.ConnectionString)
+            );
+
+            if (settings.UseTls)
+            {
+                settings.SslSettings = new SslSettings() { EnabledSslProtocols = SslProtocols.Tls12 };
+            }
+
+            MongoClient = new MongoClient(settings);
 
             _database = MongoClient.GetDatabase(_mongoSettings.DatabaseName);
         }

@@ -7,12 +7,12 @@ using Optsol.Components.Application.Services;
 using Optsol.Components.Infra.UoW;
 using Optsol.Components.Service.Controllers;
 using Optsol.Components.Service.Responses;
-using Optsol.Components.Shared.Extensions;
 using Optsol.Components.Test.Utils.Data.Contexts;
 using Optsol.Components.Test.Utils.Data.Entities.ValueObjecs;
 using Optsol.Components.Test.Utils.Entity.Entities;
 using Optsol.Components.Test.Utils.Repositories.Core;
 using Optsol.Components.Test.Utils.ViewModels;
+using System;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -22,7 +22,8 @@ namespace Optsol.Components.Test.Integration.Service
 {
     public class ApiControllerBaseSpec
     {
-        [Fact]
+        [Trait("Services", "Controller")]
+        [Fact(DisplayName = "Deve buscar todos registros")]
         public async Task Deve_Buscar_Todos_Pela_Controller()
         {
             //Given
@@ -43,23 +44,28 @@ namespace Optsol.Components.Test.Integration.Service
             var searchDto = new TestSearchDto();
 
             services.AddLogging();
-            services.AddAutoMapper(typeof(TestViewModel));
+            services.AddAutoMapper(typeof(TestResponseDto));
             services.AddContext<Context>(options =>
             {
                 options
                     .EnabledInMemory()
                     .EnabledLogging();
+
+                options
+                    .ConfigureRepositories<ITestReadRepository, TestReadRepository>("Optsol.Components.Test.Utils");
             });
             services.AddDomainNotifications();
-            services.AddRepository<ITestReadRepository, TestReadRepository>("Optsol.Components.Test.Utils");
-            services.AddApplications<ITestServiceApplication, TestServiceApplication>("Optsol.Components.Test.Utils");
+            services.AddApplications(options =>
+            {
+                options.ConfigureServices<ITestServiceApplication, TestServiceApplication>("Optsol.Components.Test.Utils");
+            });
             services.AddServices();
 
             var provider = services.BuildServiceProvider();
-            IApiControllerBase<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel, TestSearchDto> controllerBase =
-                new ApiControllerBase<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel, TestSearchDto>(
+            IApiControllerBase<TestEntity, TestRequestDto, TestResponseDto, TestSearchDto> controllerBase =
+                new ApiControllerBase<TestEntity, TestRequestDto, TestResponseDto, TestSearchDto>(
                     provider.GetRequiredService<ILoggerFactory>(),
-                    provider.GetRequiredService<IBaseServiceApplication<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel>>(),
+                    provider.GetRequiredService<IBaseServiceApplication<TestEntity>>(),
                     provider.GetRequiredService<IResponseFactory>());
 
             var unitOfWork = provider.GetRequiredService<IUnitOfWork>();
@@ -78,13 +84,14 @@ namespace Optsol.Components.Test.Integration.Service
             ((OkObjectResult)actionResult).StatusCode.Should().NotBeNull();
             ((OkObjectResult)actionResult).StatusCode.Should().Be((int)HttpStatusCode.OK);
 
-            var resultObj = JsonConvert.DeserializeObject<ResponseList<TestViewModel>>(((OkObjectResult)actionResult).Value.ToJson());
+            var resultObj = JsonConvert.DeserializeObject<ResponseList<TestResponseDto>>(((OkObjectResult)actionResult).Value.ToJson());
             resultObj.Should().NotBeNull();
             resultObj.Success.Should().BeTrue();
             resultObj.Failure.Should().BeFalse();
             resultObj.Messages.Should().BeEmpty();
             resultObj.Data.Should().NotBeNull();
-            resultObj.Data.All(a => a.IsValid).Should().BeTrue();
+            resultObj.Data.All(a => a.Valid).Should().BeTrue();
+            resultObj.Data.All(a => a.Invalid).Should().BeFalse();
             resultObj.Data.SelectMany(s => s.Notifications).Should().BeEmpty();
             resultObj.Data.Should().HaveCount(3);
             resultObj.Data.Any(a => a.Id == entity.Id).Should().BeTrue();
@@ -92,7 +99,8 @@ namespace Optsol.Components.Test.Integration.Service
             resultObj.Data.Any(a => a.Nome == entity3.Nome.ToString()).Should().BeTrue();
         }
 
-        [Fact]
+        [Trait("Services", "Controller")]
+        [Fact(DisplayName = "Deve buscar registro por id")]
         public async Task Deve_Buscar_Registro_Por_Id_Pela_Controller()
         {
             //Given
@@ -113,23 +121,29 @@ namespace Optsol.Components.Test.Integration.Service
             var searchDto = new TestSearchDto();
 
             services.AddLogging();
-            services.AddAutoMapper(typeof(TestViewModel));
+            services.AddAutoMapper(typeof(TestResponseDto));
             services.AddDomainNotifications();
             services.AddContext<Context>(options =>
             {
                 options
                     .EnabledInMemory()
                     .EnabledLogging();
+
+                options
+                    .ConfigureRepositories<ITestReadRepository, TestReadRepository>("Optsol.Components.Test.Utils");
             });
-            services.AddRepository<ITestReadRepository, TestReadRepository>("Optsol.Components.Test.Utils");
-            services.AddApplications<IBaseServiceApplication<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel>, TestServiceApplication>("Optsol.Components.Test.Utils");
+            services.AddApplications(options =>
+            {
+                options
+                    .ConfigureServices<ITestServiceApplication, TestServiceApplication>("Optsol.Components.Test.Utils");
+            });
             services.AddServices();
 
             var provider = services.BuildServiceProvider();
-            IApiControllerBase<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel, TestSearchDto> controllerBase =
-                new ApiControllerBase<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel, TestSearchDto>(
+            IApiControllerBase<TestEntity, TestRequestDto, TestResponseDto, TestSearchDto> controllerBase =
+                new ApiControllerBase<TestEntity, TestRequestDto, TestResponseDto, TestSearchDto>(
                     provider.GetRequiredService<ILoggerFactory>(),
-                    provider.GetRequiredService<IBaseServiceApplication<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel>>(),
+                    provider.GetRequiredService<IBaseServiceApplication<TestEntity>>(),
                     provider.GetRequiredService<IResponseFactory>());
 
             var unitOfWork = provider.GetRequiredService<IUnitOfWork>();
@@ -148,7 +162,7 @@ namespace Optsol.Components.Test.Integration.Service
             ((OkObjectResult)actionResult).StatusCode.Should().NotBeNull();
             ((OkObjectResult)actionResult).StatusCode.Should().Be((int)HttpStatusCode.OK);
 
-            var resultObj = JsonConvert.DeserializeObject<Response<TestViewModel>>(((OkObjectResult)actionResult).Value.ToJson());
+            var resultObj = JsonConvert.DeserializeObject<Response<TestResponseDto>>(((OkObjectResult)actionResult).Value.ToJson());
             resultObj.Should().NotBeNull();
             resultObj.Success.Should().BeTrue();
             resultObj.Failure.Should().BeFalse();
@@ -159,17 +173,20 @@ namespace Optsol.Components.Test.Integration.Service
             resultObj.Data.Ativo.Should().Be("Inativo");
         }
 
-        [Fact]
+        [Trait("Services", "Controller")]
+        [Fact(DisplayName = "Deve inserir um novo registro")]
         public async Task Deve_Inserir_Registro_Pelo_Servico()
         {
             //Given
-            InsertTestViewModel model = new InsertTestViewModel();
-            model.Nome = "Weslley Carneiro";
-            model.Contato = "weslley.carneiro@optsol.com.br";
+            TestRequestDto model = new()
+            {
+                Nome = "Weslley Carneiro",
+                Contato = "weslley.carneiro@optsol.com.br"
+            };
 
             var services = new ServiceCollection();
             services.AddLogging();
-            services.AddAutoMapper(typeof(TestViewModel));
+            services.AddAutoMapper(typeof(TestResponseDto));
             services.AddDomainNotifications();
             services.AddContext<Context>(options =>
             {
@@ -177,14 +194,18 @@ namespace Optsol.Components.Test.Integration.Service
                     .EnabledInMemory()
                     .EnabledLogging();
             });
-            services.AddApplications<IBaseServiceApplication<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel>, TestServiceApplication>("Optsol.Components.Test.Utils");
+            services.AddApplications(options =>
+            {
+                options
+                    .ConfigureServices<ITestServiceApplication, TestServiceApplication>("Optsol.Components.Test.Utils");
+            });
             services.AddServices();
 
             var provider = services.BuildServiceProvider();
-            IApiControllerBase<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel, TestSearchDto> controllerBase =
-                new ApiControllerBase<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel, TestSearchDto>(
+            IApiControllerBase<TestEntity, TestRequestDto, TestResponseDto, TestSearchDto> controllerBase =
+                new ApiControllerBase<TestEntity, TestRequestDto, TestResponseDto, TestSearchDto>(
                     provider.GetRequiredService<ILoggerFactory>(),
-                    provider.GetRequiredService<IBaseServiceApplication<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel>>(),
+                    provider.GetRequiredService<IBaseServiceApplication<TestEntity>>(),
                     provider.GetRequiredService<IResponseFactory>());
 
             //When
@@ -194,24 +215,28 @@ namespace Optsol.Components.Test.Integration.Service
             ((OkObjectResult)actionResult).StatusCode.Should().NotBeNull();
             ((OkObjectResult)actionResult).StatusCode.Should().Be((int)HttpStatusCode.OK);
 
-            var resultObj = JsonConvert.DeserializeObject<Response>(((OkObjectResult)actionResult).Value.ToJson());
+            var resultObj = JsonConvert.DeserializeObject<Response<TestRequestDto>>(((OkObjectResult)actionResult).Value.ToJson());
             resultObj.Should().NotBeNull();
+            resultObj.Data.Should().NotBeNull();
             resultObj.Success.Should().BeTrue();
             resultObj.Failure.Should().BeFalse();
             resultObj.Messages.Should().BeEmpty();
         }
 
-        [Fact]
+        [Trait("Services", "Controller")]
+        [Fact(DisplayName = "Deve atualizar um novo registro")]
         public async Task Deve_Atualizar_Registro_Pelo_Servico()
         {
             //Given
-            InsertTestViewModel model = new InsertTestViewModel();
-            model.Nome = "Weslley Carneiro";
-            model.Contato = "weslley.carneiro@optsol.com.br";
+            TestRequestDto model = new()
+            {
+                Nome = "Weslley Carneiro",
+                Contato = "weslley.carneiro@optsol.com.br"
+            };
 
             var services = new ServiceCollection();
             services.AddLogging();
-            services.AddAutoMapper(typeof(TestViewModel));
+            services.AddAutoMapper(typeof(TestResponseDto));
             services.AddDomainNotifications();
             services.AddContext<Context>(options =>
             {
@@ -219,40 +244,46 @@ namespace Optsol.Components.Test.Integration.Service
                     .EnabledInMemory()
                     .EnabledLogging();
             });
-            services.AddApplications<ITestServiceApplication, TestServiceApplication>("Optsol.Components.Test.Utils");
+            services.AddApplications(options =>
+            {
+                options
+                    .ConfigureServices<ITestServiceApplication, TestServiceApplication>("Optsol.Components.Test.Utils");
+            });
             services.AddServices();
 
             var provider = services.BuildServiceProvider();
             ITestServiceApplication serviceApplication = provider.GetRequiredService<ITestServiceApplication>();
-            IApiControllerBase<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel, TestSearchDto> controllerBase =
-                new ApiControllerBase<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel, TestSearchDto>(
+            IApiControllerBase<TestEntity, TestRequestDto, TestResponseDto, TestSearchDto> controllerBase =
+                new ApiControllerBase<TestEntity, TestRequestDto, TestResponseDto, TestSearchDto>(
                     provider.GetRequiredService<ILoggerFactory>(),
-                    provider.GetRequiredService<IBaseServiceApplication<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel>>(),
+                    provider.GetRequiredService<IBaseServiceApplication<TestEntity>>(),
                     provider.GetRequiredService<IResponseFactory>());
 
-            await serviceApplication.InsertAsync(model);
+            await serviceApplication.InsertAsync<TestRequestDto, TestRequestDto>(model);
 
-            var data = (await serviceApplication.GetAllAsync()).Single();
-
-            var updateModel = new UpdateTestViewModel();
-            updateModel.Id = data.Id;
-            updateModel.Nome = $"Weslley Alterado";
-            updateModel.Contato = model.Contato;
+            var data = (await serviceApplication.GetAllAsync<TestResponseDto>()).Single();
+            var updateModelId = data.Id;
+            var updateModel = new TestRequestDto
+            {
+                Nome = $"Weslley Alterado",
+                Contato = model.Contato
+            };
 
             //When
-            var actionResult = await controllerBase.UpdateAsync(updateModel);
+            var actionResult = await controllerBase.UpdateAsync(updateModelId, updateModel);
 
             //Then
             ((OkObjectResult)actionResult).StatusCode.Should().NotBeNull();
             ((OkObjectResult)actionResult).StatusCode.Should().Be((int)HttpStatusCode.OK);
 
-            var resultObj = JsonConvert.DeserializeObject<Response>(((OkObjectResult)actionResult).Value.ToJson());
+            var resultObj = JsonConvert.DeserializeObject<Response<TestResponseDto>>(((OkObjectResult)actionResult).Value.ToJson());
             resultObj.Should().NotBeNull();
+            resultObj.Data.Should().NotBeNull();
             resultObj.Success.Should().BeTrue();
             resultObj.Failure.Should().BeFalse();
             resultObj.Messages.Should().BeEmpty();
 
-            var resultService = await serviceApplication.GetByIdAsync(updateModel.Id);
+            var resultService = await serviceApplication.GetByIdAsync<TestResponseDto>(updateModelId);
             resultService.Should().NotBeNull();
             resultService.Id.Should().NotBeEmpty();
             resultService.Nome.Should().Be(updateModel.Nome);
@@ -261,17 +292,20 @@ namespace Optsol.Components.Test.Integration.Service
 
         }
 
-        [Fact]
+        [Trait("Services", "Controller")]
+        [Fact(DisplayName = "Deve remover um registro por id")]
         public async Task Deve_Remover_Registro_Pelo_Id_Pelo_Servico()
         {
             //Given
-            InsertTestViewModel model = new InsertTestViewModel();
-            model.Nome = "Weslley Carneiro";
-            model.Contato = "weslley.carneiro@optsol.com.br";
+            TestRequestDto model = new()
+            {
+                Nome = "Weslley Carneiro",
+                Contato = "weslley.carneiro@optsol.com.br"
+            };
 
             var services = new ServiceCollection();
             services.AddLogging();
-            services.AddAutoMapper(typeof(TestViewModel));
+            services.AddAutoMapper(typeof(TestResponseDto));
             services.AddDomainNotifications();
             services.AddContext<Context>(options =>
             {
@@ -279,20 +313,24 @@ namespace Optsol.Components.Test.Integration.Service
                     .EnabledInMemory()
                     .EnabledLogging();
             });
-            services.AddApplications<ITestServiceApplication, TestServiceApplication>("Optsol.Components.Test.Utils");
+            services.AddApplications(options =>
+            {
+                options
+                    .ConfigureServices<ITestServiceApplication, TestServiceApplication>("Optsol.Components.Test.Utils");
+            });
             services.AddServices();
 
             var provider = services.BuildServiceProvider();
             ITestServiceApplication serviceApplication = provider.GetRequiredService<ITestServiceApplication>();
-            IApiControllerBase<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel, TestSearchDto> controllerBase =
-                new ApiControllerBase<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel, TestSearchDto>(
+            IApiControllerBase<TestEntity, TestRequestDto, TestResponseDto, TestSearchDto> controllerBase =
+                new ApiControllerBase<TestEntity, TestRequestDto, TestResponseDto, TestSearchDto>(
                     provider.GetRequiredService<ILoggerFactory>(),
-                    provider.GetRequiredService<IBaseServiceApplication<TestEntity, TestViewModel, TestViewModel, InsertTestViewModel, UpdateTestViewModel>>(),
+                    provider.GetRequiredService<IBaseServiceApplication<TestEntity>>(),
                     provider.GetRequiredService<IResponseFactory>());
 
-            await serviceApplication.InsertAsync(model);
+            await serviceApplication.InsertAsync<TestRequestDto, TestRequestDto>(model);
 
-            var entity = (await serviceApplication.GetAllAsync()).FirstOrDefault();
+            var entity = (await serviceApplication.GetAllAsync<TestResponseDto>()).FirstOrDefault();
 
             //When
             var actionResult = await controllerBase.DeleteAsync(entity.Id);
@@ -307,7 +345,7 @@ namespace Optsol.Components.Test.Integration.Service
             resultObj.Failure.Should().BeFalse();
             resultObj.Messages.Should().BeEmpty();
 
-            (await serviceApplication.GetAllAsync()).Should().BeEmpty();
+            (await serviceApplication.GetAllAsync<TestResponseDto>()).Should().BeEmpty();
 
         }
     }

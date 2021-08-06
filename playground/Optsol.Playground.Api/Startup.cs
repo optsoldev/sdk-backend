@@ -4,7 +4,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Optsol.Playground.Application.Mappers.Cliente;
+using Microsoft.Extensions.Logging;
+using Optsol.Playground.Application.Mappers.CartaoCredito;
 using Optsol.Playground.Application.Services.Cliente;
 using Optsol.Playground.Domain.Repositories.Cliente;
 using Optsol.Playground.Infra.Data.Context;
@@ -26,7 +27,9 @@ namespace Optsol.Playground.Api
 
         public void ConfigureServices(IServiceCollection services)
         {
-            var connectionString = this.Configuration.GetSection("ConnectionStrings:DefaultConnection");
+            var connectionString = Configuration.GetSection("ConnectionStrings:DefaultConnection");
+
+            services.AddHealthChecks(Configuration);
 
             services.AddContext<PlaygroundContext>(options =>
             {
@@ -35,35 +38,40 @@ namespace Optsol.Playground.Api
                     .ConfigureMigrationsAssemblyName("Optsol.Playground.Infra")
                     .EnabledLogging();
 
+                options
+                    .ConfigureRepositories<IClientePessoaFisicaReadRepository, ClienteReadRepository>("Optsol.Playground.Domain", "Optsol.Playground.Infra");
+
             });
-            services.AddRepository<IClienteReadRepository, ClienteReadRepository>("Optsol.Playground.Domain", "Optsol.Playground.Infra");
-            services.AddApplications<IClienteServiceApplication, ClienteServiceApplication>("Optsol.Playground.Application");
+            services.AddApplications(options =>
+            {
+                options
+                    .ConfigureAutoMapper<CartaoCreditoEntityToViewModelMapper>()
+                    .ConfigureServices<IClienteServiceApplication, ClienteServiceApplication>("Optsol.Playground.Application");
+            });
             services.AddDomainNotifications();
             services.AddServices();
-            
+
+
             services.AddCors(Configuration);
             services.AddSecurity(Configuration);
             services.AddSwagger(Configuration);
-            
-            services.AddAutoMapper(typeof(ClienteViewModelToEntityMapper));
         }
 
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILoggerFactory loggerFactory)
         {
-            if (env.IsDevelopment())
-            {
-                app.UseDeveloperExceptionPage();
-            }
+            app.UseException(loggerFactory, env.IsDevelopment());
 
             app.UseHttpsRedirection();
-            
+
             app.UseRouting();
 
             app.UseSecurity(Configuration);
-                        
+
             app.UseCors(Configuration);
 
             app.UseSwagger(Configuration, env.IsDevelopment());
+
+            app.UseHealthChecks(Configuration);
 
             app.UseEndpoints(endpoints =>
             {
